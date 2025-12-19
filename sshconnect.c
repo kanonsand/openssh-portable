@@ -363,7 +363,7 @@ ssh_create_socket(struct addrinfo *ai)
 		set_sock_tos(sock, options.ip_qos_interactive);
 
 	/* Bind the socket to an alternative local IP address */
-	if (options.bind_address == NULL && options.bind_interface == NULL)
+	if (options.bind_address == NULL && options.bind_interface == NULL && options.bind_port <= 0)
 		return sock;
 
 	if (options.bind_address != NULL) {
@@ -401,7 +401,23 @@ ssh_create_socket(struct addrinfo *ai)
 #else
 		error("BindInterface not supported on this platform.");
 #endif
+	} 
+
+	/* Set the source port if specified */
+	if (options.bind_port > 0) {
+		if (options.bind_address == NULL && options.bind_interface==NULL){
+			error("BindAddress or BindInterface should been defined when BindPort is defined");
+			goto fail;
+		}
+		if (bindaddr.ss_family == AF_INET) {
+			struct sockaddr_in *sin = (struct sockaddr_in *)&bindaddr;
+			sin->sin_port = htons(options.bind_port);
+		} else if (bindaddr.ss_family == AF_INET6) {
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&bindaddr;
+			sin6->sin6_port = htons(options.bind_port);
+		}
 	}
+
 	if ((r = getnameinfo((struct sockaddr *)&bindaddr, bindaddrlen,
 	    ntop, sizeof(ntop), NULL, 0, NI_NUMERICHOST)) != 0) {
 		error_f("getnameinfo failed: %s", ssh_gai_strerror(r));

@@ -155,7 +155,7 @@ typedef enum {
 	oPubkeyAuthentication,
 	oKbdInteractiveAuthentication, oKbdInteractiveDevices, oHostKeyAlias,
 	oDynamicForward, oPreferredAuthentications, oHostbasedAuthentication,
-	oHostKeyAlgorithms, oBindAddress, oBindInterface, oPKCS11Provider,
+	oHostKeyAlgorithms, oBindAddress, oBindPort, oBindInterface, oPKCS11Provider,
 	oClearAllForwardings, oNoHostAuthenticationForLocalhost,
 	oEnableSSHKeysign, oRekeyLimit, oVerifyHostKeyDNS, oConnectTimeout,
 	oAddressFamily, oGssAuthentication, oGssDelegateCreds,
@@ -273,6 +273,7 @@ static struct {
 	{ "hostkeyalgorithms", oHostKeyAlgorithms },
 	{ "casignaturealgorithms", oCASignatureAlgorithms },
 	{ "bindaddress", oBindAddress },
+	{ "bindport", oBindPort },
 	{ "bindinterface", oBindInterface },
 	{ "clearallforwardings", oClearAllForwardings },
 	{ "enablesshkeysign", oEnableSSHKeysign },
@@ -1518,6 +1519,11 @@ parse_char_array:
 		charptr = &options->bind_address;
 		goto parse_string;
 
+	case oBindPort:
+		intptr = &options->bind_port;
+		goto parse_int;
+	
+
 	case oBindInterface:
 		charptr = &options->bind_interface;
 		goto parse_string;
@@ -2746,6 +2752,7 @@ initialize_options(Options * options)
 	options->log_verbose = NULL;
 	options->preferred_authentications = NULL;
 	options->bind_address = NULL;
+	options->bind_port = -1;
 	options->bind_interface = NULL;
 	options->pkcs11_provider = NULL;
 	options->sk_provider = NULL;
@@ -3731,6 +3738,7 @@ dump_client_config(Options *o, const char *host)
 
 	/* String options */
 	dump_cfg_string(oBindAddress, o->bind_address);
+	dump_cfg_string(oBindPort, o->bind_port);
 	dump_cfg_string(oBindInterface, o->bind_interface);
 	dump_cfg_string(oCiphers, o->ciphers);
 	dump_cfg_string(oControlPath, o->control_path);

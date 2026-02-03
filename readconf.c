@@ -3738,7 +3738,7 @@ dump_client_config(Options *o, const char *host)
 
 	/* String options */
 	dump_cfg_string(oBindAddress, o->bind_address);
-	dump_cfg_string(oBindPort, o->bind_port);
+	dump_cfg_int(oBindPort, o->bind_port);
 	dump_cfg_string(oBindInterface, o->bind_interface);
 	dump_cfg_string(oCiphers, o->ciphers);
 	dump_cfg_string(oControlPath, o->control_path);

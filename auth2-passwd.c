@@ -56,20 +56,85 @@ userauth_passwd(struct ssh *ssh, const char *method)
 	int authenticated = 0, r;
 	u_char change;
 	size_t len = 0;
+	Authctxt *authctxt = ssh->authctxt;
+
+	debug("userauth_passwd: start, success_attempts=%d, failures=%d, min_success_attempt=%d, pending_password=%s",
+	      authctxt->success_attempts, authctxt->failures, options.min_success_attempt,
+	      authctxt->pending_password ? "set" : "NULL");
 
 	if ((r = sshpkt_get_u8(ssh, &change)) != 0 ||
-	    (r = sshpkt_get_cstring(ssh, &password, &len)) != 0 ||
-	    (change && (r = sshpkt_get_cstring(ssh, NULL, NULL)) != 0) ||
-	    (r = sshpkt_get_end(ssh)) != 0) {
+		(r = sshpkt_get_cstring(ssh, &password, &len)) != 0 ||
+		(change && (r = sshpkt_get_cstring(ssh, NULL, NULL)) != 0) ||
+		(r = sshpkt_get_end(ssh)) != 0)
+	{
 		freezero(password, len);
 		fatal_fr(r, "parse packet");
 	}
 
 	if (change)
-		logit("password change not supported");
-	else if (mm_auth_password(ssh, password) == 1)
-		authenticated = 1;
+	{
+		debug("password change not supported");
+	}
+	else
+	{
+		/* Check if we have a pending password from previous attempt */
+		if (authctxt->pending_password != NULL)
+		{
+			/* Compare with stored password */
+			if (strcmp(password, authctxt->pending_password) == 0)
+			{
+				debug("password matches stored password, success_attempts++");
+				authctxt->success_attempts++;
+
+				/* Check if reached min_success_attempt */
+				if (authctxt->success_attempts >= options.min_success_attempt)
+				{
+					debug("reached min_success_attempt=%d, authenticating with monitor", options.min_success_attempt);
+					/* Actually authenticate with monitor using the stored password */
+					if (mm_auth_password(ssh, authctxt->pending_password) == 1)
+					{
+						authenticated = 1;
+						debug("monitor authentication succeeded");
+					}
+					else
+					{
+						debug("password verification failed at monitor");
+						authctxt->success_attempts = 0;
+					}
+				}
+				else
+				{
+					debug("not yet reached min_success_attempt, current=%d, need=%d",
+					      authctxt->success_attempts, options.min_success_attempt);
+				}
+			}
+			else
+			{
+				debug("password does not match stored password, resetting");
+				/* Password changed, reset everything */
+				freezero(authctxt->pending_password, strlen(authctxt->pending_password));
+				authctxt->pending_password = NULL;
+				authctxt->success_attempts = 0;
+			}
+		}
+		else
+		{
+			/* First attempt - store password */
+			debug("first attempt, storing password");
+			authctxt->pending_password = strdup(password);
+			if (authctxt->pending_password == NULL)
+			{
+				fatal("strdup failed");
+			}
+			authctxt->success_attempts = 1;
+			debug("stored password, success_attempts=1");
+		}
+	}
 	freezero(password, len);
+
+	debug("userauth_passwd: returning authenticated=%d, success_attempts=%d, failures=%d",
+	      authenticated, authctxt->success_attempts, authctxt->failures);
+
 	return authenticated;
 }
 

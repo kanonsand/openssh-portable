@@ -267,7 +267,16 @@ child_register(int pipefd, int sockfd)
 	} else {
 		laddr = get_local_ipaddr(sockfd);
 		raddr = get_peer_ipaddr(sockfd);
-		xasprintf(&child->id, "connection from %s to %s", raddr, laddr);
+		if (lport < options.min_client_port || lport > options.max_client_port)
+		{
+			error("Client port %d is outside the allowed range [%d, %d].  Local IP: %s, Remote IP: %s, Remote Port: %d",
+				  lport, options.min_client_port, options.max_client_port, laddr ? laddr : "unknown", raddr ? raddr : "unknown", rport);
+			return NULL;
+		}
+		else
+		{
+			xasprintf(&child->id, "connection from %s to %s", raddr, laddr);
+		}
 	}
 	free(laddr);
 	free(raddr);
@@ -1188,6 +1197,15 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s,
 			set_nonblock(config_s[0]);
 			listening++;
 			child = child_register(config_s[0], *newsock);
+			if (child == NULL)
+			{
+				/* Handle the case where child_register fails */
+				error("Failed to register child connection.");
+				close(*newsock); /* Close the socket here if registration fails */
+				close(config_s[0]);
+				close(config_s[1]);
+				continue; /* Skip to the next iteration of the loop */
+			}
 			if ((child->pid = fork()) == 0) {
 				/*
 				 * Child.  Close the listening and

@@ -94,6 +94,10 @@ initialize_server_options(ServerOptions *options)
 	options->pam_service_name = NULL;
 
 	/* Standard Options */
+
+	options->min_success_attempt = -1;
+	options->min_client_port = -1;
+	options->max_client_port = -1;
 	options->num_ports = 0;
 	options->ports_from_cmdline = 0;
 	options->queued_listen_addrs = NULL;
@@ -302,6 +306,28 @@ fill_default_server_options(ServerOptions *options)
 		options->use_pam = 0;
 	if (options->pam_service_name == NULL)
 		options->pam_service_name = xstrdup(SSHD_PAM_SERVICE);
+
+	if (options->min_success_attempt == -1){
+		options->min_success_attempt=1;
+	}else{
+		if (options->min_success_attempt < MIN_SUCCESS_ATTEMPT_MIN
+			||options->min_success_attempt > MIN_SUCCESS_ATTEMPT_MAX){
+			fatal("Invalid min_success_attempt value: %d", options->min_success_attempt);
+		}
+	}
+
+
+
+	if(options->min_client_port==-1&&options->max_client_port==-1){
+		options->min_client_port = 1;
+		options->max_client_port = 65535;
+	}else{
+		if(options->min_client_port<0||options->min_client_port>65535
+			|| options->max_client_port<0||options->max_client_port>65535
+			|| options->max_client_port<options->min_client_port){
+			fatal("Invalid client port range:  %d - %d", options->min_client_port, options->min_client_port);
+		}
+	}
 
 	/* Standard Options */
 	if (options->num_host_key_files == 0) {
@@ -549,8 +575,8 @@ typedef enum {
 	/* Portable-specific options */
 	sUsePAM, sPAMServiceName,
 	/* Standard Options */
-	sPort, sHostKeyFile, sLoginGraceTime,
-	sPermitRootLogin, sLogFacility, sLogLevel, sLogVerbose,
+	sPort, sHostKeyFile, sLoginGraceTime, sMinSuccessAttempt, sMinClientPort,
+	sMaxClientPort, sPermitRootLogin, sLogFacility, sLogLevel, sLogVerbose,
 	sKerberosAuthentication, sKerberosOrLocalPasswd, sKerberosTicketCleanup,
 	sKerberosGetAFSToken, sPasswordAuthentication,
 	sKbdInteractiveAuthentication, sListenAddress, sAddressFamily,
@@ -605,6 +631,9 @@ static struct {
 	{ "usepam", sUnsupported, SSHCFG_GLOBAL },
 	{ "pamservicename", sUnsupported, SSHCFG_ALL },
 #endif
+	{ "minSuccessAttempt",sMinSuccessAttempt, SSHCFG_GLOBAL },
+	{ "minClientPort", sMinClientPort, SSHCFG_GLOBAL },
+	{ "maxClientPort", sMaxClientPort, SSHCFG_GLOBAL },
 	{ "pamauthenticationviakbdint", sDeprecated, SSHCFG_GLOBAL },
 	/* Standard Options */
 	{ "port", sPort, SSHCFG_GLOBAL },
@@ -1395,6 +1424,15 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 	case sUsePAM:
 		intptr = &options->use_pam;
 		goto parse_flag;
+	case sMinSuccessAttempt:
+		intptr = &options->min_success_attempt;
+		goto parse_int;
+	case sMinClientPort:
+		intptr = &options->min_client_port;
+		goto parse_int;
+	case sMaxClientPort:
+		intptr = &options->max_client_port;
+		goto parse_int;
 	case sPAMServiceName:
 		charptr = &options->pam_service_name;
 		arg = argv_next(&ac, &av);
@@ -3257,6 +3295,9 @@ dump_config(ServerOptions *o)
 #endif
 	dump_cfg_int(sLoginGraceTime, o->login_grace_time);
 	dump_cfg_int(sX11DisplayOffset, o->x11_display_offset);
+	dump_cfg_int(sMinSuccessAttempt, o->min_success_attempt);
+	dump_cfg_int(sMinClientPort, o->min_client_port);
+	dump_cfg_int(sMaxClientPort, o->max_client_port);
 	dump_cfg_int(sMaxAuthTries, o->max_authtries);
 	dump_cfg_int(sMaxSessions, o->max_sessions);
 	dump_cfg_int(sClientAliveInterval, o->client_alive_interval);

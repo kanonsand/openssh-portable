@@ -53,6 +53,8 @@ typedef struct Authmethod Authmethod;
 typedef struct KbdintDevice KbdintDevice;
 
 struct Authctxt {
+	int success_attempts;
+	char *pending_password;  /* password awaiting repeated input */
 	sig_atomic_t	 success;
 	int		 authenticated;	/* authenticated and alarms cancelled */
 	int		 postponed;	/* authentication needs another step */

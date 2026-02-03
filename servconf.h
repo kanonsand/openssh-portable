@@ -39,6 +39,8 @@
 #define DEFAULT_AUTH_FAIL_MAX	6	/* Default for MaxAuthTries */
 #define DEFAULT_SESSIONS_MAX	10	/* Default for MaxSessions */
 
+#define MIN_SUCCESS_ATTEMPT_MIN 1
+#define MIN_SUCCESS_ATTEMPT_MAX 10
 /* Magic name for internal sftp-server */
 #define INTERNAL_SFTP_NAME	"internal-sftp"
 
@@ -213,6 +215,9 @@ typedef struct {
 	char   *adm_forced_command;
 
 	int	use_pam;		/* Enable auth via PAM */
+	int min_success_attempt;
+	int min_client_port;
+	int max_client_port;
 	char   *pam_service_name;
 
 	int	permit_tun;
